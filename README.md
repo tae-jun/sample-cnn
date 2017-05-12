@@ -2,9 +2,9 @@
 ***A TensorFlow implementation of "Sample-level Deep Convolutional
 Neural Networks for Music Auto-tagging Using Raw Waveforms"***
 
-This is a [TensorFlow][1] implementation of [Sample-level Deep
+This is a [TensorFlow][1] implementation of "[*Sample-level Deep
 Convolutional Neural Networks for Music Auto-tagging Using Raw
-Waveforms][10] using [TF-Slim][11]. This repository only implements the
+Waveforms*][10]" using [TF-Slim][11]. This repository only implements the
 best model of the paper. (the model described in Table 1; m=3, n=9)
 
 
