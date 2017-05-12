@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -e
+
+# Please fill in the blanks!
+BASE_DIR=
+CHECKPOINT_DIR=
+ENV_NAME=   # if you don't use an environment, just leave it blank.
+
+
+INPUT_FILE_PATTERN="${BASE_DIR}/tfrecord/test-???-of-???.seq.tfrecords"
+
+if [ -n "${ENV_NAME}" ]; then
+    source activate "${ENV_NAME}"
+fi
+
+export PYTHONPATH='.'
+export PYTHONUNBUFFERED=1
+
+python sample_cnn/evaluate_scnn.py \
+    --input_file_pattern="${INPUT_FILE_PATTERN}" \
+    --checkpoint_dir="${CHECKPOINT_DIR}"

@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -e
+
+# Please fill in the blanks!
+BASE_DIR=
+TRAIN_DIR=
+ENV_NAME=   # if you don't use an environment, just leave it blank.
+
+
+TRAIN_INPUT_FILE_PATTERN="${BASE_DIR}/tfrecord/train-???-of-???.tfrecords"
+VAL_INPUT_FILE_PATTERN="${BASE_DIR}/tfrecord/val-???-of-???.seq.tfrecords"
+BEST_MODEL_PATH="${TRAIN_DIR}/best.ckpt"
+LOG_FILE="${TRAIN_DIR}/train.log"
+
+mkdir -p "${TRAIN_DIR}"
+
+if [ -n "${ENV_NAME}" ]; then
+    source activate "${ENV_NAME}"
+fi
+
+export PYTHONPATH='.'
+export PYTHONUNBUFFERED=1
+
+nohup python sample_cnn/train_scnn.py \
+    --train_input_file_pattern="${TRAIN_INPUT_FILE_PATTERN}" \
+    --val_input_file_pattern="${VAL_INPUT_FILE_PATTERN}" \
+    --train_dir="${TRAIN_DIR}" \
+    --best_model_path="${BEST_MODEL_PATH}" > "${LOG_FILE}" &
+
+tail -F "${LOG_FILE}"

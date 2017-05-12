@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -e
+
+# Please fill in the blanks!
+BASE_DIR=
+N_PROCESSES=4
+ENV_NAME=   # if you don't use an environment, just leave it blank.
+
+
+DATA_DIR="${BASE_DIR}/raw"
+ANNOTATION_FILE="${BASE_DIR}/annotations_final.csv"
+OUTPUT_DIR="${BASE_DIR}/tfrecord"
+OUTPUT_LABELS="${BASE_DIR}/labels.txt"
+LOG_FILE="${BASE_DIR}/build_mtt.log"
+
+if [ -n "${ENV_NAME}" ]; then
+    source activate "${ENV_NAME}"
+fi
+
+export PYTHONPATH='.'
+export PYTHONUNBUFFERED=1
+
+nohup python sample_cnn/data/mtt/build_mtt.py \
+    --data_dir="${DATA_DIR}" \
+    --annotation_file="${ANNOTATION_FILE}" \
+    --output_dir="${OUTPUT_DIR}" \
+    --output_labels="${OUTPUT_LABELS}" \
+    --n_processes="${N_PROCESSES}" > "${LOG_FILE}" &
+
+tail -F "${LOG_FILE}"

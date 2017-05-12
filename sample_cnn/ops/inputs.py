@@ -1,0 +1,115 @@
+import tensorflow as tf
+
+
+def _read_example(filename_queue, n_labels=50, n_samples=59049):
+  reader = tf.TFRecordReader()
+  _, serialized_example = reader.read(filename_queue)
+  features = tf.parse_single_example(
+    serialized_example,
+    features={
+      'raw_labels': tf.FixedLenFeature([], tf.string),
+      'raw_segment': tf.FixedLenFeature([], tf.string)
+    })
+
+  segment = tf.decode_raw(features['raw_segment'], tf.float32)
+  segment.set_shape([n_samples])
+
+  labels = tf.decode_raw(features['raw_labels'], tf.uint8)
+  labels.set_shape([n_labels])
+  labels = tf.cast(labels, tf.float32)
+
+  return segment, labels
+
+
+def _read_sequence_example(filename_queue,
+                           n_labels=50, n_samples=59049, n_segments=10):
+  reader = tf.TFRecordReader()
+  _, serialized_example = reader.read(filename_queue)
+  context, sequence = tf.parse_single_sequence_example(
+    serialized_example,
+    context_features={
+      'raw_labels': tf.FixedLenFeature([], dtype=tf.string)
+    },
+    sequence_features={
+      'raw_segments': tf.FixedLenSequenceFeature([], dtype=tf.string)
+    })
+
+  segments = tf.decode_raw(sequence['raw_segments'], tf.float32)
+  segments.set_shape([n_segments, n_samples])
+
+  labels = tf.decode_raw(context['raw_labels'], tf.uint8)
+  labels.set_shape([n_labels])
+  labels = tf.cast(labels, tf.float32)
+
+  return segments, labels
+
+
+def batch_inputs(file_pattern,
+                 batch_size,
+                 is_training,
+                 is_sequence,
+                 examples_per_shard,
+                 input_queue_capacity_factor=8,
+                 n_read_threads=2,
+                 shard_queue_name='filename_queue',
+                 example_queue_name='input_queue'):
+  data_files = []
+  for pattern in file_pattern.split(","):
+    data_files.extend(tf.gfile.Glob(pattern))
+
+  assert len(data_files) > 0, (
+    'Found no input files matching {}'.format(file_pattern))
+
+  tf.logging.info('Prefetching values from %d files matching %s',
+                  len(data_files), file_pattern)
+
+  if is_sequence:
+    read_example_fn = _read_sequence_example
+  else:
+    read_example_fn = _read_example
+
+  if is_training:
+    filename_queue = tf.train.string_input_producer(
+      data_files, shuffle=True, capacity=16, name=shard_queue_name)
+
+    # examples_per_shard
+    #   = examples_per_song * n_training_songs / n_training_shards
+    #   = 11 * 18709 / 128
+    #   = 1608
+    #
+    # example_size = 59049 * 4bytes = 232KB
+    #
+    # queue_size
+    #   = examples_per_shard * input_queue_capacity_factor * example_size
+    #   = 1608 * 8 * 232KB = 3GB
+    min_queue_examples = examples_per_shard * input_queue_capacity_factor
+    capacity = min_queue_examples + 3 * batch_size
+
+    example_list = [read_example_fn(filename_queue)
+                    for _ in range(n_read_threads)]
+
+    segment, label = tf.train.shuffle_batch_join(
+      example_list,
+      batch_size=batch_size,
+      capacity=capacity,
+      min_after_dequeue=min_queue_examples,
+      name='shuffle_' + example_queue_name,
+    )
+
+    return segment, label
+
+  else:
+    filename_queue = tf.train.string_input_producer(
+      data_files, shuffle=False, capacity=1, name=shard_queue_name)
+
+    segment, label = read_example_fn(filename_queue)
+
+    capacity = examples_per_shard + 2 * batch_size
+    segment_batch, label_batch = tf.train.batch(
+      [segment, label],
+      batch_size=batch_size,
+      num_threads=1,
+      capacity=capacity,
+      name='fifo_' + example_queue_name)
+
+    return segment_batch, label_batch
