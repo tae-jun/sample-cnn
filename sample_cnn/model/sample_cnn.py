@@ -4,17 +4,18 @@ import tensorflow.contrib.slim as slim
 
 class SampleCNN:
   """Represents Sample CNN."""
+
+  _reuse = False
+
   def __init__(self, config):
     self.config = config
     self.scope = 'SampleCNN'
 
-  def __call__(self, input):
-    outputs = self._build_net(input)
-    logits = self._build_logits(outputs)
-    return logits
+  def __call__(self, inputs):
+    return self._build_net(inputs)
 
-  def outputs(self, input):
-    outputs = self._build_net(input)
+  def outputs(self, inputs):
+    outputs = self._build_net(inputs)
     return outputs
 
   @property
@@ -29,11 +30,12 @@ class SampleCNN:
   def batch_norm_params(self):
     return {
       'is_training': self.is_training,
-      'trainable': self.trainable
+      'trainable': self.trainable,
+      'scale': True
     }
 
-  def _build_net(self, input):
-    with tf.variable_scope(self.scope, reuse=True):
+  def _build_net(self, inputs):
+    with tf.variable_scope(self.scope, reuse=SampleCNN._reuse):
       with slim.arg_scope(
               [slim.convolution],
               stride=1,
@@ -52,9 +54,9 @@ class SampleCNN:
           max_pool1d = slim.pool
 
           # 59049
-          net = tf.expand_dims(input, -1)
+          net = tf.expand_dims(inputs, -1)
           # 59049 X 1
-          net = conv1d(net, 128, 3, stride=3, scope='Conv1d_0')
+          net = conv1d(net, 128, 3, padding='VALID', stride=3, scope='Conv1d_0')
           # 19683 X 128
           net = conv1d(net, 128, 3, scope='Conv1d_1')
           net = max_pool1d(net, 3, scope='MaxPool1d_1')
@@ -92,15 +94,14 @@ class SampleCNN:
                              scope='Dropout')
           net = slim.flatten(net, scope='Flatten')
 
-          return net
+          net = slim.fully_connected(
+            net,
+            num_outputs=self.config.n_outputs,
+            activation_fn=None,
+            weights_initializer=self.config.initializer(),
+            scope='Logits')
 
-  def _build_logits(self, outputs):
-    logits = slim.fully_connected(
-      outputs,
-      num_outputs=self.config.n_outputs,
-      activation_fn=None,
-      weights_initializer=self.config.initializer(),
-      scope='Logits',
-      reuse=True)
+    if not SampleCNN._reuse:
+      SampleCNN._reuse = True
 
-    return logits
+    return net
