@@ -40,7 +40,7 @@ class SampleCNN:
               [slim.convolution],
               stride=1,
               padding='SAME',
-              weights_initializer=self.config.initializer(),
+              weights_initializer=self.config.initializer,
               trainable=self.trainable,
               activation_fn=self.config.activation_fn,
               normalizer_fn=slim.batch_norm,
@@ -98,7 +98,7 @@ class SampleCNN:
             net,
             num_outputs=self.config.n_outputs,
             activation_fn=None,
-            weights_initializer=self.config.initializer(),
+            weights_initializer=self.config.initializer,
             scope='Logits')
 
     if not SampleCNN._reuse:
