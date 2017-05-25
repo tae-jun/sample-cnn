@@ -19,6 +19,9 @@ def load_annotations(filename,
      'indian', 'female', 'synth', 'vocal', 'violin', 'beat', 'ambient',
      'piano', 'fast', 'rock', 'electronic', 'drums', 'strings', 'techno',
      'slow', 'classical', 'guitar', 'clip_id', 'mp3_path', 'split', 'shard']
+     
+  NOTE: This will exclude audios which have only zero-tags. Therefore, number of
+    each split will be 15250 / 1529 / 4332 (training / validation / test).
 
   Args:
     filename: A path to annotation CSV file.
@@ -78,5 +81,8 @@ def load_annotations(filename,
     df.loc[df['split'] == split, 'shard'] = shards
 
   df['shard'] = df['shard'].astype(int)
+
+  # Exclude rows which only have zeros.
+  df = df.ix[~(df.ix[:, :n_top] == 0).all(axis=1)]
 
   return df

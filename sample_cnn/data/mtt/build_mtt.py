@@ -144,6 +144,12 @@ def main(unused_argv):
   _save_tags(tag_list, FLAGS.output_labels)
   print('Top {} tags written to {}'.format(len(tag_list), FLAGS.output_labels))
 
+  n_train = len(anno[anno['split'] == 'train'])
+  n_val = len(anno[anno['split'] == 'val'])
+  n_test = len(anno[anno['split'] == 'test'])
+  print('Number of songs for each split: {} / {} / {} '
+        '(training / validation / test)'.format(n_train, n_val, n_test))
+
   print('Start processing MagnaTagATune using {} cores'
         .format(FLAGS.n_processes))
   _process_dataset(anno, FLAGS.sample_rate, FLAGS.n_samples, FLAGS.n_processes)

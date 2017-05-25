@@ -22,13 +22,13 @@ tf.flags.DEFINE_string('checkpoint_dir', '',
 
 # Batch options.
 tf.flags.DEFINE_integer('batch_size', 23, 'Batch size.')
-tf.flags.DEFINE_integer('n_train_examples', 187090,
+tf.flags.DEFINE_integer('n_train_examples', 152500,
                         'Number of examples in training dataset.')
-tf.flags.DEFINE_integer('n_val_examples', 1825,
+tf.flags.DEFINE_integer('n_val_examples', 1529,
                         'Number of examples in validation dataset.')
-tf.flags.DEFINE_integer('n_train_examples_per_shard', 1462,
+tf.flags.DEFINE_integer('n_train_examples_per_shard', 1191,
                         'Approximate number of examples per training shard.')
-tf.flags.DEFINE_integer('n_val_examples_per_shard', 152,
+tf.flags.DEFINE_integer('n_val_examples_per_shard', 127,
                         'Approximate number of examples per validation shard.')
 tf.flags.DEFINE_integer('n_read_threads', 2, 'Number of example reader.')
 
@@ -39,7 +39,7 @@ tf.flags.DEFINE_float('dropout_keep_prob', 0.5, 'Dropout keep probability.')
 tf.flags.DEFINE_float('lr_decay', 0.2, 'Learning rate decay.')
 
 # Training options.
-tf.flags.DEFINE_integer('validation_every_n_steps', 8134,
+tf.flags.DEFINE_integer('validation_every_n_steps', 6630,
                         'Number of steps to validate the model periodically.'
                         '(default 1 epoch)')
 tf.flags.DEFINE_integer('patience', 3,
