@@ -47,7 +47,7 @@ tf.flags.DEFINE_integer('patience', 3,
                         'learning `patience * validation_every_n_steps` more '
                         'steps, decay learning rate.')
 tf.flags.DEFINE_integer('max_steps', 10000000, 'Number of batches to run.')
-tf.flags.DEFINE_integer('log_every_n_steps', 5,
+tf.flags.DEFINE_integer('log_every_n_steps', 10,
                         'Number of steps to log loss periodically.')
 tf.flags.DEFINE_integer('max_checkpoints_to_keep', 1,
                         'Maximum number of checkpoints to keep.')
