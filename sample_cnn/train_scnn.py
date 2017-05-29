@@ -1,4 +1,5 @@
 import os
+import json
 
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
@@ -61,6 +62,28 @@ def _join_and_norm_path(*paths):
   path = os.path.join(*[str(path) for path in paths])
   path = os.path.realpath(path)
   return path
+
+
+def _save_best_scores(train_dir, loss, roc_auc, filename='best_scores.json'):
+  scores = {
+    'loss': loss,
+    'roc_auc': roc_auc
+  }
+
+  with open(_join_and_norm_path(train_dir, filename), 'w') as f:
+    json.dump(scores, f)
+
+
+def _load_best_scores(train_dir, filename='best_scores.json'):
+  path = _join_and_norm_path(train_dir, filename)
+
+  if not os.path.isfile(path):
+    return None, None
+
+  with open(path) as f:
+    data = json.load(f)
+
+  return data['loss'], data['roc_auc']
 
 
 def _train(learning_rate, train_dir, previous_train_dir):
@@ -137,7 +160,7 @@ def _train(learning_rate, train_dir, previous_train_dir):
     tf.summary.scalar('learning_rate', learning_rate)
 
     # Summary writer.
-    summary_writer = tf.summary.FileWriter(FLAGS.train_dir)
+    summary_writer = tf.summary.FileWriter(train_dir)
 
     # Saver.
     saver = tf.train.Saver(max_to_keep=FLAGS.max_checkpoints_to_keep)
@@ -186,6 +209,7 @@ def _train(learning_rate, train_dir, previous_train_dir):
           best_model_saver.save(sess, best_ckpt_path,
                                 global_step=global_step,
                                 latest_filename=best_ckpt_latest_filename)
+          _save_best_scores(train_dir, mean_loss, roc_auc)
         else:
           train_step.patience -= 1
           tf.logging.info('@ Validation loss did not decrease: '
@@ -203,15 +227,18 @@ def _train(learning_rate, train_dir, previous_train_dir):
 
       return total_loss, should_stop
 
-    train_step.best_loss = 100.0
-    train_step.roc_auc_at_best_loss = 0.0
+    # None if there is no previous scores
+    best_loss, roc_auc_at_best_loss = _load_best_scores(train_dir)
+
+    train_step.best_loss = best_loss or 100.0
+    train_step.roc_auc_at_best_loss = roc_auc_at_best_loss or 0.0
     train_step.patience = FLAGS.patience
 
     # Kick off the training!
     slim.learning.train(
       train_op=train_op,
       train_step_fn=train_step,
-      logdir=FLAGS.train_dir,
+      logdir=train_dir,
       graph=g,
       global_step=global_step,
       log_every_n_steps=FLAGS.log_every_n_steps,
@@ -229,6 +256,9 @@ def main(unused_argv):
   assert FLAGS.val_input_file_pattern, '--val_input_file_pattern is required'
 
   for i in range(FLAGS.max_retrains):
+    if os.path.isdir(_join_and_norm_path(FLAGS.train_dir, i + 1)):
+      continue
+      
     decay = FLAGS.global_lr_decay ** i
     learning_rate = FLAGS.initial_learning_rate * decay
     train_dir = _join_and_norm_path(FLAGS.train_dir, i)
