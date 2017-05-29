@@ -98,6 +98,8 @@ def _train(learning_rate, train_dir, previous_train_dir):
   best_ckpt_path = _join_and_norm_path(train_dir, FLAGS.best_ckpt_name)
   best_ckpt_latest_filename = FLAGS.best_ckpt_name + '_checkpoint'
 
+  tf.reset_default_graph()
+
   # Set up the default model configurations.
   config = ModelConfig(mode='train')
   config.dropout_keep_prob = FLAGS.dropout_keep_prob
