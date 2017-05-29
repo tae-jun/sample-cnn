@@ -69,8 +69,8 @@ def _train(learning_rate, train_dir, previous_train_dir):
     print(key, '=', value)
 
   if not tf.gfile.Exists(train_dir):
-    tf.logging.info('Creating training directory: %s', FLAGS.train_dir)
-    tf.gfile.MakeDirs(FLAGS.train_dir)
+    tf.logging.info('Creating training directory: %s', train_dir)
+    tf.gfile.MakeDirs(train_dir)
 
   best_ckpt_path = _join_and_norm_path(train_dir, FLAGS.best_ckpt_name)
   best_ckpt_latest_filename = FLAGS.best_ckpt_name + '_checkpoint'
