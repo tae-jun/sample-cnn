@@ -9,7 +9,9 @@ tf.flags.DEFINE_string('input_file_pattern', '',
                        'File pattern of sharded TFRecord input files.')
 tf.flags.DEFINE_string('checkpoint_dir', '',
                        'Directory containing model checkpoints.')
-tf.flags.DEFINE_bool('best', True, 'Evaluate the best checkpoint.')
+tf.flags.DEFINE_bool('eval_best', True, 'Evaluate the best checkpoint.')
+tf.flags.DEFINE_string('best_ckpt_name', 'best',
+                       'Checkpoint name of the best model.')
 
 tf.flags.DEFINE_integer('batch_size', 32, 'Batch size.')
 tf.flags.DEFINE_integer('n_outputs', 50,
@@ -46,10 +48,11 @@ def _eval_once():
     sess = tf.Session()
     sess.run(init_op)
 
-
-    if FLAGS.best:
-      ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir,
-                                           latest_filename='best_checkpoint')
+    if FLAGS.eval_best:
+      best_ckpt_latest_filename = FLAGS.best_ckpt_name + '_checkpoint'
+      ckpt = tf.train.get_checkpoint_state(
+        checkpoint_dir=FLAGS.checkpoint_dir,
+        latest_filename=best_ckpt_latest_filename)
     else:
       ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
 
