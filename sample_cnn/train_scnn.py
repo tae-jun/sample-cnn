@@ -68,7 +68,7 @@ def _train(learning_rate, train_dir, previous_train_dir):
   for key, value in FLAGS.__flags.items():
     print(key, '=', value)
 
-  if not tf.gfile.Exists(FLAGS.train_dir):
+  if not tf.gfile.Exists(train_dir):
     tf.logging.info('Creating training directory: %s', FLAGS.train_dir)
     tf.gfile.MakeDirs(FLAGS.train_dir)
 
