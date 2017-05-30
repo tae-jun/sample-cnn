@@ -5,10 +5,9 @@ import tensorflow.contrib.slim as slim
 class SampleCNN:
   """Represents Sample CNN."""
 
-  _reuse = False
-
-  def __init__(self, config):
+  def __init__(self, config, reuse=None):
     self.config = config
+    self.reuse = reuse
     self.scope = 'SampleCNN'
 
   def __call__(self, inputs):
@@ -35,7 +34,7 @@ class SampleCNN:
     }
 
   def _build_net(self, inputs):
-    with tf.variable_scope(self.scope, reuse=SampleCNN._reuse):
+    with tf.variable_scope(self.scope, reuse=self.reuse):
       with slim.arg_scope(
               [slim.convolution],
               stride=1,
@@ -100,8 +99,5 @@ class SampleCNN:
             activation_fn=None,
             weights_initializer=self.config.initializer,
             scope='Logits')
-
-    if not SampleCNN._reuse:
-      SampleCNN._reuse = True
 
     return net

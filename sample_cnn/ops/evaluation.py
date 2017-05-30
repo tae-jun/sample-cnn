@@ -30,7 +30,7 @@ def _safe_auc_roc(label, pred):
 def inference(sequence, labels):
   # Build model for evaluation.
   config = ModelConfig(mode='eval')
-  scnn = SampleCNN(config)
+  scnn = SampleCNN(config, reuse=True)
 
   batch_size, n_segments, _ = sequence.shape
 
