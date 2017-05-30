@@ -38,7 +38,7 @@ def _eval_once():
       example_queue_name='input_queue')
 
     # Validation.
-    pred, loss = inference(sequence, labels)
+    pred, loss = inference(sequence, labels, reuse=None)
 
     saver = tf.train.Saver()
 

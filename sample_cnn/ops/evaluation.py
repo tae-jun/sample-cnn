@@ -27,10 +27,10 @@ def _safe_auc_roc(label, pred):
     return roc_auc_score(label, pred, average='macro')
 
 
-def inference(sequence, labels):
+def inference(sequence, labels, reuse=True):
   # Build model for evaluation.
   config = ModelConfig(mode='eval')
-  scnn = SampleCNN(config, reuse=True)
+  scnn = SampleCNN(config, reuse=reuse)
 
   batch_size, n_segments, _ = sequence.shape
 
