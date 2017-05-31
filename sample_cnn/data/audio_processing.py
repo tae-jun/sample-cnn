@@ -73,7 +73,7 @@ def _segment_to_example(segment, labels):
   return example
 
 
-def _audio_to_segments(filename, sample_rate, n_samples):
+def _audio_to_segments(filename, sample_rate, n_samples, center=False):
   """Loads, and splits an audio into N segments.
   
   Args:
@@ -90,10 +90,11 @@ def _audio_to_segments(filename, sample_rate, n_samples):
 
   total_samples = sig.shape[0]
   n_segment = total_samples // n_samples
-  remainder = total_samples % n_samples
 
-  # Take center samples
-  sig = sig[remainder // 2: -remainder // 2]
+  if center:
+    # Take center samples
+    remainder = total_samples % n_samples
+    sig = sig[remainder // 2: -remainder // 2]
 
   # Split the signal into segments
   segments = [sig[i * n_samples:(i + 1) * n_samples] for i in range(n_segment)]
