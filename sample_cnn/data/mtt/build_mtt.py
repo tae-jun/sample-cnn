@@ -25,12 +25,8 @@ tf.flags.DEFINE_integer('n_top', 50, 'Number of top N tags.')
 tf.flags.DEFINE_integer('n_processes', 4,
                         'Number of processes to process audios in parallel.')
 
-tf.flags.DEFINE_integer('n_train_shards', 128,
-                        'Number of shards in training TFRecord files.')
-tf.flags.DEFINE_integer('n_val_shards', 12,
-                        'Number of shards in validation TFRecord files.')
-tf.flags.DEFINE_integer('n_test_shards', 36,
-                        'Number of shards in test TFRecord files.')
+tf.flags.DEFINE_integer('n_audios_per_shard', 100,
+                        'Number of audios per shard.')
 
 # Audio processing flags
 tf.flags.DEFINE_integer('sample_rate', 22050, 'Sample rate of audio.')
@@ -129,30 +125,39 @@ def _save_tags(tag_list, output_labels):
 
 
 def main(unused_argv):
-  anno = load_annotations(filename=FLAGS.annotation_file,
-                          n_top=FLAGS.n_top,
-                          n_train_shards=FLAGS.n_train_shards,
-                          n_val_shards=FLAGS.n_val_shards,
-                          n_test_shards=FLAGS.n_test_shards)
+  df = load_annotations(filename=FLAGS.annotation_file,
+                        n_top=FLAGS.n_top,
+                        n_audios_per_shard=FLAGS.n_audios_per_shard)
 
   if not tf.gfile.IsDirectory(FLAGS.output_dir):
     tf.logging.info('Creating output directory: %s', FLAGS.output_dir)
     tf.gfile.MakeDirs(FLAGS.output_dir)
 
   # Save top N tags
-  tag_list = anno.columns[:FLAGS.n_top].tolist()
+  tag_list = df.columns[:FLAGS.n_top].tolist()
   _save_tags(tag_list, FLAGS.output_labels)
   print('Top {} tags written to {}'.format(len(tag_list), FLAGS.output_labels))
 
-  n_train = len(anno[anno['split'] == 'train'])
-  n_val = len(anno[anno['split'] == 'val'])
-  n_test = len(anno[anno['split'] == 'test'])
+  df_train = df[df['split'] == 'train']
+  df_val = df[df['split'] == 'val']
+  df_test = df[df['split'] == 'test']
+
+  n_train = len(df_train)
+  n_val = len(df_val)
+  n_test = len(df_test)
   print('Number of songs for each split: {} / {} / {} '
         '(training / validation / test)'.format(n_train, n_val, n_test))
 
+  n_train_shards = df_train['shard'].nunique()
+  n_val_shards = df_val['shard'].nunique()
+  n_test_shards = df_test['shard'].nunique()
+  print('Number of shards for each split: {} / {} / {} '
+        '(training / validation / test)'.format(n_train_shards,
+                                                n_val_shards, n_test_shards))
+
   print('Start processing MagnaTagATune using {} cores'
         .format(FLAGS.n_processes))
-  _process_dataset(anno, FLAGS.sample_rate, FLAGS.n_samples, FLAGS.n_processes)
+  _process_dataset(df, FLAGS.sample_rate, FLAGS.n_samples, FLAGS.n_processes)
 
   print()
   print('Done.')

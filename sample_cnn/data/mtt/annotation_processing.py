@@ -1,12 +1,12 @@
 import pandas as pd
 import numpy as np
 
+np.random.seed(0)
+
 
 def load_annotations(filename,
                      n_top=50,
-                     n_train_shards=16,
-                     n_val_shards=2,
-                     n_test_shards=6):
+                     n_audios_per_shard=100):
   """Reads annotation file, takes top N tags, and splits data samples.
 
   Results 54 (top50_tags + [clip_id, mp3_path, split, shard]) columns:
@@ -26,9 +26,7 @@ def load_annotations(filename,
   Args:
     filename: A path to annotation CSV file.
     n_top: Number of the most popular tags to take.
-    n_train_shards: Number of shards in training TFRecord files.
-    n_val_shards: Number of shards in validation TFRecord files.
-    n_test_shards: Number of shards in test TFRecord files.
+    n_audios_per_shard: Number of audios per shard.
 
   Returns:
     A DataFrame contains information of audios.
@@ -54,6 +52,9 @@ def load_annotations(filename,
 
   df = df[top50 + ['clip_id', 'mp3_path']]
 
+  # Exclude rows which only have zeros.
+  df = df.ix[~(df.ix[:, :n_top] == 0).all(axis=1)]
+
   def split_by_directory(mp3_path):
     directory = mp3_path.split('/')[0]
     part = int(directory, 16)
@@ -68,21 +69,17 @@ def load_annotations(filename,
   df['split'] = df['mp3_path'].apply(
     lambda mp3_path: split_by_directory(mp3_path))
 
-  np.random.seed(123)
+  for split in ['train', 'val', 'test']:
+    n_audios = sum(df['split'] == split)
+    n_shards = n_audios // n_audios_per_shard
+    n_remainders = n_audios % n_audios_per_shard
 
-  for split, n_shards in [('train', n_train_shards),
-                          ('val', n_val_shards),
-                          ('test', n_test_shards)]:
-    n_samples = sum(df['split'] == split)
-
-    shards = np.random.randint(n_shards, size=n_samples)
-    shards = shards[:n_samples]
+    shards = np.tile(np.arange(n_shards), n_audios_per_shard)
+    shards = np.concatenate([shards, np.arange(n_remainders)])
+    shards = np.random.permutation(shards)
 
     df.loc[df['split'] == split, 'shard'] = shards
 
   df['shard'] = df['shard'].astype(int)
-
-  # Exclude rows which only have zeros.
-  df = df.ix[~(df.ix[:, :n_top] == 0).all(axis=1)]
 
   return df
