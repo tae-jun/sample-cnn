@@ -3,7 +3,7 @@ set -e
 
 # Please fill in the blanks!
 BASE_DIR=
-N_PROCESSES=4
+N_THREADS=4
 ENV_NAME=   # if you don't use an environment, just leave it blank.
 
 
@@ -25,6 +25,6 @@ nohup python sample_cnn/data/mtt/build_mtt.py \
     --annotation_file="${ANNOTATION_FILE}" \
     --output_dir="${OUTPUT_DIR}" \
     --output_labels="${OUTPUT_LABELS}" \
-    --n_processes="${N_PROCESSES}" > "${LOG_FILE}" &
+    --n_threads="${N_THREADS}" > "${LOG_FILE}" &
 
 tail -F "${LOG_FILE}"
