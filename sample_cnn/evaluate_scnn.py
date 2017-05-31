@@ -14,9 +14,12 @@ tf.flags.DEFINE_string('best_ckpt_name', 'best',
                        'Checkpoint name of the best model.')
 
 tf.flags.DEFINE_integer('batch_size', 32, 'Batch size.')
+tf.flags.DEFINE_integer('num_examples', 4332, 'Number of examples to run.')
+tf.flags.DEFINE_integer('n_audios_per_shard', 100,
+                        'Number of audios per shard.')
+
 tf.flags.DEFINE_integer('n_outputs', 50,
                         'Number of outputs (i.e. Number of tags).')
-tf.flags.DEFINE_integer('num_examples', 4332, 'Number of examples to run.')
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -33,7 +36,7 @@ def _eval_once():
       is_training=False,
       is_sequence=True,
       n_read_threads=1,
-      examples_per_shard=120,
+      examples_per_shard=FLAGS.n_audios_per_shard,
       shard_queue_name='filename_queue',
       example_queue_name='input_queue')
 
@@ -75,6 +78,7 @@ def _eval_once():
     tf.logging.info('Start evaluation...')
 
     loss, roc_auc = evaluate(sess, pred, loss, labels,
+                             batch_size=FLAGS.batch_size,
                              n_examples=FLAGS.num_examples,
                              print_progress=True)
 

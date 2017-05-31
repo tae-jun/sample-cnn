@@ -32,7 +32,10 @@ def inference(sequence, labels, reuse=True):
   config = ModelConfig(mode='eval')
   scnn = SampleCNN(config, reuse=reuse)
 
-  batch_size, n_segments, _ = sequence.shape
+  _, n_segments, _ = sequence.shape
+
+  # Get run-time batch size since the last batch size is smaller than others.
+  batch_size = tf.shape(sequence)[0]
 
   # Tensor of shape [10, batch, 58081]
   segments = tf.transpose(sequence, [1, 0, 2])
@@ -53,7 +56,7 @@ def inference(sequence, labels, reuse=True):
     loop_vars=(
       tf.constant(0),
       tf.zeros([batch_size, config.n_outputs]),
-      tf.zeros(batch_size)),
+      tf.zeros([batch_size])),
     back_prop=False)
 
   pred = tf.div(pred_sum, tf.cast(n_segments, dtype=tf.float32))
@@ -64,9 +67,10 @@ def inference(sequence, labels, reuse=True):
   return pred, loss
 
 
-def evaluate(sess, pred, loss, labels, n_examples, print_progress=False):
-  batch_size, n_outputs = labels.shape
-  num_iter = int(ceil(n_examples / batch_size.value))
+def evaluate(sess, pred, loss, labels, batch_size, n_examples,
+             print_progress=False):
+  _, n_outputs = labels.shape
+  num_iter = int(ceil(1.0 * n_examples / batch_size))
 
   total_loss = 0.0
   total_preds = np.empty([0, n_outputs], dtype=np.float32)

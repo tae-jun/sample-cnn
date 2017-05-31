@@ -49,8 +49,8 @@ def batch_inputs(file_pattern,
                  is_training,
                  is_sequence,
                  examples_per_shard,
-                 input_queue_capacity_factor=8,
-                 n_read_threads=2,
+                 input_queue_capacity_factor=16,
+                 n_read_threads=4,
                  shard_queue_name='filename_queue',
                  example_queue_name='input_queue'):
   data_files = []
@@ -74,14 +74,14 @@ def batch_inputs(file_pattern,
 
     # examples_per_shard
     #   = examples_per_song * n_training_songs / n_training_shards
-    #   = 11 * 18709 / 128
-    #   = 1608
+    #   = 10 * 15250 / 152
+    #   = 1003
     #
     # example_size = 59049 * 4bytes = 232KB
     #
     # queue_size
     #   = examples_per_shard * input_queue_capacity_factor * example_size
-    #   = 1608 * 8 * 232KB = 3GB
+    #   = 1003 * 16 * 232KB = 3.7GB
     min_queue_examples = examples_per_shard * input_queue_capacity_factor
     capacity = min_queue_examples + 3 * batch_size
 
@@ -110,6 +110,7 @@ def batch_inputs(file_pattern,
       batch_size=batch_size,
       num_threads=1,
       capacity=capacity,
+      allow_smaller_final_batch=True,
       name='fifo_' + example_queue_name)
 
     return segment_batch, label_batch

@@ -23,15 +23,12 @@ tf.flags.DEFINE_string('best_ckpt_name', 'best',
 
 # Batch options.
 tf.flags.DEFINE_integer('batch_size', 23, 'Batch size.')
-tf.flags.DEFINE_integer('n_train_examples', 152500,
-                        'Number of examples in training dataset.')
+tf.flags.DEFINE_integer('n_audios_per_shard', 100,
+                        'Number of audios per shard.')
 tf.flags.DEFINE_integer('n_val_examples', 1529,
                         'Number of examples in validation dataset.')
-tf.flags.DEFINE_integer('n_train_examples_per_shard', 1191,
-                        'Approximate number of examples per training shard.')
-tf.flags.DEFINE_integer('n_val_examples_per_shard', 127,
-                        'Approximate number of examples per validation shard.')
-tf.flags.DEFINE_integer('n_read_threads', 2, 'Number of example reader.')
+
+tf.flags.DEFINE_integer('n_read_threads', 4, 'Number of example reader.')
 
 # Learning options.
 tf.flags.DEFINE_float('initial_learning_rate', 0.01, 'Initial learning rate.')
@@ -48,7 +45,7 @@ tf.flags.DEFINE_integer('patience', 3,
                         'If the validation loss does not decrease even after '
                         'learning `patience * validation_every_n_steps` more '
                         'steps, decay learning rate.')
-tf.flags.DEFINE_integer('max_retrains', 10, 'Number of re-training.')
+tf.flags.DEFINE_integer('max_trains', 5, 'Number of re-training.')
 tf.flags.DEFINE_integer('max_steps', 10000000, 'Number of batches to run.')
 tf.flags.DEFINE_integer('log_every_n_steps', 10,
                         'Number of steps to log loss periodically.')
@@ -111,7 +108,7 @@ def _train(learning_rate, train_dir, previous_train_dir):
       is_training=True,
       is_sequence=False,
       n_read_threads=FLAGS.n_read_threads,
-      examples_per_shard=FLAGS.n_train_examples_per_shard,
+      examples_per_shard=FLAGS.n_audios_per_shard * 10,
       shard_queue_name='train_filename_queue',
       example_queue_name='train_input_queue')
 
@@ -122,7 +119,7 @@ def _train(learning_rate, train_dir, previous_train_dir):
       is_training=False,
       is_sequence=True,
       n_read_threads=1,
-      examples_per_shard=FLAGS.n_val_examples_per_shard,
+      examples_per_shard=FLAGS.n_audios_per_shard,
       shard_queue_name='val_filename_queue',
       example_queue_name='val_input_queue')
 
@@ -188,6 +185,7 @@ def _train(learning_rate, train_dir, previous_train_dir):
 
       if np_global_step % FLAGS.validation_every_n_steps == 0:
         mean_loss, roc_auc = evaluate(sess, val_pred, val_loss, val_labels,
+                                      batch_size=FLAGS.batch_size,
                                       n_examples=FLAGS.n_val_examples)
 
         tf.logging.info('@ Validation scores: '
@@ -255,7 +253,7 @@ def main(unused_argv):
   assert FLAGS.train_dir, '--train_dir is required'
   assert FLAGS.val_input_file_pattern, '--val_input_file_pattern is required'
 
-  for i in range(FLAGS.max_retrains):
+  for i in range(FLAGS.max_trains):
     if os.path.isdir(_join_and_norm_path(FLAGS.train_dir, i + 1)):
       continue
       
@@ -269,7 +267,9 @@ def main(unused_argv):
     ###########################
     # Start training stage {} #
     ###########################'''.format(i))
-    print('learning_rate={}, train_dir={}'.format(learning_rate, train_dir))
+    print('learning_rate={:.4f}'.format(learning_rate))
+    print('train_dir={}'.format(train_dir))
+    print()
 
     _train(learning_rate, train_dir, previous_train_dir)
 
