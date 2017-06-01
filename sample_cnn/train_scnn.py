@@ -62,10 +62,6 @@ def calculate_steps(n_examples, n_segments, batch_size):
 
 
 def train(learning_rate, train_dir, past_best_weight_path):
-  # Print all flags.
-  for key, value in FLAGS.__flags.items():
-    print('{}={}'.format(key, value))
-
   if not tf.gfile.Exists(train_dir):
     tf.logging.info('Creating training directory: %s', train_dir)
     tf.gfile.MakeDirs(train_dir)
@@ -135,6 +131,11 @@ def main(unused_argv):
   assert FLAGS.train_dir, '--train_dir is required'
   assert FLAGS.val_input_file_pattern, '--val_input_file_pattern is required'
 
+  # Print all flags.
+  print('### Flags')
+  for key, value in FLAGS.__flags.items():
+    print('{}={}'.format(key, value))
+
   best_weight_path = None
   for i in range(FLAGS.max_trains):
     if os.path.isdir(make_path(FLAGS.train_dir, i + 1)):
@@ -146,9 +147,9 @@ def main(unused_argv):
     train_dir = make_path(FLAGS.train_dir, i)
     os.makedirs(train_dir)
 
-    print('\n# Start training stage {}'.format(i))
-    print('  learning_rate={}'.format(learning_rate))
-    print('  train_dir={}\n'.format(train_dir))
+    print('\n### Start training stage {}'.format(i))
+    print('learning_rate={}'.format(learning_rate))
+    print('train_dir={}\n'.format(train_dir))
 
     train(learning_rate, train_dir, best_weight_path)
 

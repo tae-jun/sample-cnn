@@ -1,5 +1,5 @@
 from keras.layers import (Conv1D, MaxPool1D, BatchNormalization,
-                          Dense, Dropout, Activation, Flatten, Reshape)
+                          Dense, Dropout, Activation, Flatten, Reshape, Input)
 
 from sample_cnn.keras_utils.tfrecord_model import TFRecordModel
 
@@ -11,7 +11,8 @@ class SampleCNN(TFRecordModel):
                kernel_initializer='he_uniform',
                dropout_rate=0.5):
     # 59049
-    net = Reshape([-1, 1])(inputs)
+    net = Input(tensor=inputs)
+    net = Reshape([-1, 1])(net)
     # 59049 X 1
     net = Conv1D(128, 3, strides=3, padding='valid',
                  kernel_initializer=kernel_initializer)(net)
