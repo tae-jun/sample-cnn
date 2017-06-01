@@ -94,7 +94,8 @@ def train(learning_rate, train_dir, past_best_weight_path):
                   momentum=FLAGS.momentum,
                   decay=FLAGS.local_lr_decay,
                   nesterov=True)
-  model.compile_tfrecord(loss='binary_crossentropy',
+  model.compile_tfrecord(y_train_batch=y_train_batch,
+                         loss='binary_crossentropy',
                          optimizer=optimizer)
 
   best_weights_path = make_path(train_dir, FLAGS.best_weights_filename)
@@ -145,7 +146,7 @@ def main(unused_argv):
     learning_rate = FLAGS.initial_learning_rate * decay
 
     train_dir = make_path(FLAGS.train_dir, i)
-    os.makedirs(train_dir)
+    os.makedirs(train_dir, exist_ok=True)
 
     print('\n### Start training stage {}'.format(i))
     print('learning_rate={}'.format(learning_rate))
