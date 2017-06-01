@@ -52,11 +52,11 @@ def _process_audio_files(args_queue):
     (assigned_anno, sample_rate,
      n_samples, split, shard, n_shards) = args_queue.get()
 
-    is_train = (split == 'train')
+    is_test = (split == 'test')
 
-    output_filename_format = ('{}-{:03d}-of-{:03d}.tfrecords'
-                              if is_train else
-                              '{}-{:03d}-of-{:03d}.seq.tfrecords')
+    output_filename_format = ('{}-{:03d}-of-{:03d}.seq.tfrecords'
+                              if is_test else
+                              '{}-{:03d}-of-{:03d}.tfrecords')
     output_filename = output_filename_format.format(split, shard, n_shards)
     output_file_path = os.path.join(FLAGS.output_dir, output_filename)
 
@@ -67,12 +67,12 @@ def _process_audio_files(args_queue):
       labels = row[:FLAGS.n_top].tolist()
 
       try:
-        if is_train:
-          examples = audio_to_examples(audio_path, labels, sample_rate,
-                                       n_samples)
-        else:
+        if is_test:
           examples = [audio_to_sequence_example(audio_path, labels,
                                                 sample_rate, n_samples)]
+        else:
+          examples = audio_to_examples(audio_path, labels, sample_rate,
+                                       n_samples)
       except LoadAudioFileError:
         # There are some broken mp3 files. Ignore it.
         print('Cannot load audio "{}". Ignore it.'.format(audio_path))
