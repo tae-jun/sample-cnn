@@ -40,6 +40,8 @@ class TFRecordModel(Model):
     loss = loss or {}
     self.optimizer = optimizers.get(optimizer)
     self.loss = loss
+    self.sample_weight_mode = None
+    self.loss_weights = None
 
     # Prepare loss functions.
     if isinstance(loss, dict):
