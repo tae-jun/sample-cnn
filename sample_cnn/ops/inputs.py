@@ -47,8 +47,8 @@ def _read_sequence_example(filename_queue,
 def batch_inputs(file_pattern,
                  batch_size,
                  is_training,
-                 is_sequence,
                  examples_per_shard,
+                 is_sequence=False,
                  input_queue_capacity_factor=16,
                  n_read_threads=4,
                  shard_queue_name='filename_queue',
@@ -110,7 +110,6 @@ def batch_inputs(file_pattern,
       batch_size=batch_size,
       num_threads=1,
       capacity=capacity,
-      allow_smaller_final_batch=True,
       name='fifo_' + example_queue_name)
 
     return segment_batch, label_batch

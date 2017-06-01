@@ -1,11 +1,10 @@
 from math import ceil
 
-import tensorflow as tf
 import numpy as np
-
+import tensorflow as tf
 from sklearn.metrics import roc_auc_score
 
-from sample_cnn.model.sample_cnn import SampleCNN
+from sample_cnn import SampleCNN
 from sample_cnn.configuration import ModelConfig
 
 
