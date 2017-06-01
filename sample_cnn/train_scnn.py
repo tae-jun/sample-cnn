@@ -94,7 +94,7 @@ def train(learning_rate, train_dir, past_best_weight_path):
                   momentum=FLAGS.momentum,
                   decay=FLAGS.local_lr_decay,
                   nesterov=True)
-  model.compile_tfrecord(y_train_batch=y_train_batch,
+  model.compile_tfrecord(y_batch=y_train_batch,
                          loss='binary_crossentropy',
                          optimizer=optimizer)
 

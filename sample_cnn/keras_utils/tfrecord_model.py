@@ -14,7 +14,7 @@ from keras.engine.training import _collect_metrics
 
 
 class TFRecordModel(Model):
-  def compile_tfrecord(self, optimizer, loss, y_train_batch, metrics=None):
+  def compile_tfrecord(self, optimizer, loss, y_batch, metrics=None):
     """Configures the model for training.
 
     # Arguments
@@ -76,7 +76,7 @@ class TFRecordModel(Model):
 
     # Prepare targets of model.
     self.targets = [None for _ in range(len(self.outputs))]
-    self.targets[0] = y_train_batch
+    self.targets[0] = y_batch
 
     # Prepare metrics.
     self.metrics = metrics
@@ -308,8 +308,10 @@ class TFRecordModel(Model):
           break
 
     finally:
-      coord.request_stop()
-      coord.join(threads)
+      # TODO: If you close the queue, you can't open it again..
+      # coord.request_stop()
+      # coord.join(threads)
+      pass
 
     callbacks.on_train_end()
     return self.history
@@ -366,9 +368,11 @@ class TFRecordModel(Model):
         batch_sizes.append(batch_size)
 
     finally:
-      if stop_queue_runners:
-        coord.request_stop()
-        coord.join(threads)
+      # TODO: If you close the queue, you can't open it again..
+      # if stop_queue_runners:
+      #   coord.request_stop()
+      #   coord.join(threads)
+      pass
 
     if not isinstance(outs, list):
       return np.average(np.asarray(all_outs),
