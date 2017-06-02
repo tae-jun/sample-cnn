@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from keras.layers import Input
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, log_loss
 
 from sample_cnn.inputs import batch_inputs
 from sample_cnn.model import SampleCNN
@@ -65,9 +65,26 @@ def eval_once():
       if i % (FLAGS.n_examples // 100) == 0 and i:
         print('Evaluated [{:04d}/{:04d}].'.format(i + 1, FLAGS.n_examples))
 
-    roc_auc = roc_auc_score(all_y_true, all_y_pred, average='macro')
+    losses = []
+    roc_aucs = []
+    for i in range(n_classes):
+      class_y_true = all_y_true[:, i]
+      class_y_pred = all_y_pred[:, i]
 
+      if np.sum(class_y_true) != 0:
+        class_loss = log_loss(class_y_true, class_y_pred)
+        class_roc_auc = roc_auc_score(class_y_true, class_y_pred)
+
+        losses.append(class_loss)
+        roc_aucs.append(class_roc_auc)
+
+    loss = np.mean(losses)
+    roc_auc = np.mean(roc_aucs)
+    print('@ binary cross entropy loss: {}'.format(loss))
     print('@ ROC AUC score: {}'.format(roc_auc))
+
+    roc_auc = roc_auc_score(all_y_true, all_y_pred, average='macro')
+    print('@ scikit-learn ROC AUC score: {}'.format(roc_auc))
 
 
 def main(unused_argv):
