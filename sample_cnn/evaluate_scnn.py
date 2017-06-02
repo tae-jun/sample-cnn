@@ -1,38 +1,33 @@
-import os
-
 import tensorflow as tf
+import numpy as np
 
+from keras.layers import Input
+from sklearn.metrics import roc_auc_score
+
+from sample_cnn.model import SampleCNN
 from sample_cnn.ops.inputs import batch_inputs
-from sample_cnn.ops.evaluation import inference, evaluate
 
 tf.flags.DEFINE_string('input_file_pattern', '',
                        'File pattern of sharded TFRecord input files.')
-tf.flags.DEFINE_string('checkpoint_dir', '',
-                       'Directory containing model checkpoints.')
-tf.flags.DEFINE_bool('eval_best', True, 'Evaluate the best checkpoint.')
-tf.flags.DEFINE_string('best_ckpt_name', 'best',
-                       'Checkpoint name of the best model.')
+tf.flags.DEFINE_string('weights_path', '', 'Path to learned weights.')
 
-tf.flags.DEFINE_integer('batch_size', 32, 'Batch size.')
-tf.flags.DEFINE_integer('num_examples', 4332, 'Number of examples to run.')
+tf.flags.DEFINE_integer('n_examples', 4332, 'Number of examples to run.')
 tf.flags.DEFINE_integer('n_audios_per_shard', 100,
                         'Number of audios per shard.')
-
-tf.flags.DEFINE_integer('n_outputs', 50,
-                        'Number of outputs (i.e. Number of tags).')
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
 FLAGS = tf.flags.FLAGS
 
 
-def _eval_once():
+def eval_once():
   g = tf.Graph()
   with g.as_default():
-    # sequence: [batch_size, 10, 58081]
+    # sequence: [1, 10, 58081]
+    # labels: [1, 50]
     sequence, labels = batch_inputs(
       file_pattern=FLAGS.input_file_pattern,
-      batch_size=FLAGS.batch_size,
+      batch_size=1,
       is_training=False,
       is_sequence=True,
       n_read_threads=1,
@@ -40,60 +35,43 @@ def _eval_once():
       shard_queue_name='filename_queue',
       example_queue_name='input_queue')
 
-    # Validation.
-    pred, loss = inference(sequence, labels, reuse=None)
+    segments = tf.squeeze(sequence)
 
-    saver = tf.train.Saver()
+    labels = tf.squeeze(labels)
+    labels = Input(tensor=labels)
 
-    init_op = tf.group(tf.global_variables_initializer(),
-                       tf.local_variables_initializer())
+    model = SampleCNN(segments=segments,
+                      extra_inputs=labels,
+                      extra_outputs=labels)
 
-    sess = tf.Session()
-    sess.run(init_op)
+    print('Load weights from "{}".'.format(FLAGS.weights_path))
+    model.load_weights(FLAGS.weights_path)
 
-    if FLAGS.eval_best:
-      best_ckpt_latest_filename = FLAGS.best_ckpt_name + '_checkpoint'
-      ckpt = tf.train.get_checkpoint_state(
-        checkpoint_dir=FLAGS.checkpoint_dir,
-        latest_filename=best_ckpt_latest_filename)
-    else:
-      ckpt = tf.train.get_checkpoint_state(FLAGS.checkpoint_dir)
+    n_classes = labels.shape[0].value
+    all_y_pred = np.empty([0, n_classes], dtype=np.float32)
+    all_y_true = np.empty([0, n_classes], dtype=np.float32)
 
-    if ckpt and ckpt.model_checkpoint_path:
-      if os.path.isabs(ckpt.model_checkpoint_path):
-        save_path = ckpt.model_checkpoint_path
-      else:
-        save_path = os.path.join(FLAGS.checkpoint_dir,
-                                 ckpt.model_checkpoint_path)
+    for _ in range(FLAGS.n_examples):
+      y_pred_segments, y_true = model.predict_tfrecord(segments)
 
-      tf.logging.info('Restoring variables from checkpoint file {}'
-                      .format(save_path))
-      saver.restore(sess, save_path)
-    else:
-      raise IOError('Could not find a checkpoint')
+      y_pred = np.mean(y_pred_segments, axis=0)
 
-    coord = tf.train.Coordinator()
-    threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+      y_pred = np.expand_dims(y_pred, 0)
+      y_true = np.expand_dims(y_true, 0)
 
-    tf.logging.info('Start evaluation...')
+      all_y_pred = np.append(all_y_pred, y_pred, axis=0)
+      all_y_true = np.append(all_y_true, y_true, axis=0)
 
-    loss, roc_auc = evaluate(sess, pred, loss, labels,
-                             batch_size=FLAGS.batch_size,
-                             n_examples=FLAGS.num_examples,
-                             print_progress=True)
+    roc_auc = roc_auc_score(all_y_true, all_y_pred, average='macro')
 
-    tf.logging.info('loss={}, roc_auc={}'.format(loss, roc_auc))
-
-    coord.request_stop()
-    coord.join(threads)
-    sess.close()
+    print('@ ROC AUC score: {}'.format(roc_auc))
 
 
 def main(unused_argv):
   assert FLAGS.input_file_pattern, '--input_file_pattern is required'
-  assert FLAGS.checkpoint_dir, '--checkpoint_dir is required'
+  assert FLAGS.weights_path, '--weights_path is required'
 
-  _eval_once()
+  eval_once()
 
 
 if __name__ == '__main__':

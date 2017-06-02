@@ -86,7 +86,7 @@ def train(learning_rate, train_dir, past_best_weight_path):
     shard_queue_name='val_filename_queue',
     example_queue_name='val_input_queue')
 
-  model = SampleCNN(inputs=x_train_batch,
+  model = SampleCNN(segments=x_train_batch,
                     dropout_rate=FLAGS.dropout_rate)
 
   if past_best_weight_path:
@@ -110,7 +110,8 @@ def train(learning_rate, train_dir, past_best_weight_path):
     filepath=best_weights_path,
     monitor='val_loss',
     save_best_only=True)
-  csv_logger = CSVLogger(filename=make_path(train_dir, 'training.csv'))
+  csv_logger = CSVLogger(filename=make_path(train_dir, 'training.csv'),
+                         append=True)
 
   # Kick-off the training!
   train_steps = calculate_steps(n_examples=FLAGS.n_train_examples,

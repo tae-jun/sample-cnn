@@ -383,3 +383,42 @@ class TFRecordModel(Model):
         averages.append(np.average([out[i] for out in all_outs],
                                    weights=batch_sizes))
       return averages
+
+  def _make_tfrecord_predict_function(self):
+    if not hasattr(self, 'predict_function'):
+      self.predict_function = None
+    if self.predict_function is None:
+      if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+        inputs = [K.learning_phase()]
+      else:
+        inputs = []
+      # Gets network outputs. Does not update weights.
+      # Does update the network states.
+      self.predict_function = K.function(inputs,
+                                         self.outputs,
+                                         updates=self.state_updates)
+
+  def predict_tfrecord(self, x_batch):
+    if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+      ins = [0.]
+    else:
+      ins = []
+    self._make_tfrecord_predict_function()
+
+    try:
+      sess = K.get_session()
+      coord = tf.train.Coordinator()
+      threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+
+      outputs = self.predict_function(ins)
+
+    finally:
+      # TODO: If you close the queue, you can't open it again..
+      # if stop_queue_runners:
+      #   coord.request_stop()
+      #   coord.join(threads)
+      pass
+
+    if len(outputs) == 1:
+      return outputs[0]
+    return outputs

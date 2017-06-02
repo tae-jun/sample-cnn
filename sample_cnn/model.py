@@ -5,13 +5,15 @@ from sample_cnn.keras_utils.tfrecord_model import TFRecordModel
 
 
 class SampleCNN(TFRecordModel):
-  def __init__(self, inputs,
+  def __init__(self, segments,
                n_outputs=50,
                activation='relu',
                kernel_initializer='he_uniform',
-               dropout_rate=0.5):
+               dropout_rate=0.5,
+               extra_inputs=None,
+               extra_outputs=None):
     # 59049
-    net = Input(tensor=inputs)
+    net = Input(tensor=segments)
     net = Reshape([-1, 1])(net)
     # 59049 X 1
     net = Conv1D(128, 3, strides=3, padding='valid',
@@ -81,6 +83,14 @@ class SampleCNN(TFRecordModel):
     net = Dropout(dropout_rate)(net)
     net = Flatten()(net)
 
-    outputs = Dense(units=n_outputs, activation='sigmoid')(net)
+    logits = Dense(units=n_outputs, activation='sigmoid')(net)
+
+    if not isinstance(extra_inputs, list):
+      extra_inputs = [extra_inputs]
+    inputs = [segments] + extra_inputs
+
+    if not isinstance(extra_outputs, list):
+      extra_outputs = [extra_outputs]
+    outputs = [logits] + extra_outputs
 
     super(SampleCNN, self).__init__(inputs=inputs, outputs=outputs)
