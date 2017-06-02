@@ -3,7 +3,7 @@ set -e
 
 # Please fill in the blanks!
 BASE_DIR=
-CHECKPOINT_DIR=
+WEIGHTS_PATH=
 ENV_NAME=   # if you don't use an environment, just leave it blank.
 
 
@@ -18,4 +18,4 @@ export PYTHONUNBUFFERED=1
 
 python sample_cnn/evaluate_scnn.py \
     --input_file_pattern="${INPUT_FILE_PATTERN}" \
-    --checkpoint_dir="${CHECKPOINT_DIR}"
+    --weights_path="${WEIGHTS_PATH}"
