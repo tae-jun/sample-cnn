@@ -137,8 +137,13 @@ def main(unused_argv):
   for key, value in FLAGS.__flags.items():
     print('{}={}'.format(key, value))
 
-  best_weight_path = None
+  best_weights_path = None
   for i in range(FLAGS.max_trains):
+    train_dir = make_path(FLAGS.train_dir, i)
+
+    if os.path.isfile(make_path(train_dir, FLAGS.best_weights_filename)):
+      best_weights_path = make_path(train_dir, FLAGS.best_weights_filename)
+
     if os.path.isdir(make_path(FLAGS.train_dir, i + 1)):
       continue
 
@@ -152,9 +157,9 @@ def main(unused_argv):
     print('learning_rate={}'.format(learning_rate))
     print('train_dir={}\n'.format(train_dir))
 
-    train(learning_rate, train_dir, best_weight_path)
+    train(learning_rate, train_dir, best_weights_path)
 
-    best_weight_path = make_path(train_dir, FLAGS.best_weights_filename)
+    best_weights_path = make_path(train_dir, FLAGS.best_weights_filename)
 
 
 if __name__ == '__main__':
