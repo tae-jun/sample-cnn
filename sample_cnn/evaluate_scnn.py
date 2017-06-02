@@ -63,7 +63,7 @@ def eval_once():
       all_y_pred = np.append(all_y_pred, y_pred, axis=0)
       all_y_true = np.append(all_y_true, y_true, axis=0)
 
-      if i % (FLAGS.n_examples // 100):
+      if i % (FLAGS.n_examples // 100) == 0:
         print('Evaluated [{:04d}/{:04d}].'.format(i, FLAGS.n_examples))
 
     roc_auc = roc_auc_score(all_y_true, all_y_pred, average='macro')
