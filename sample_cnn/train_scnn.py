@@ -45,6 +45,8 @@ tf.flags.DEFINE_float('local_lr_decay', 1e-6, 'Local learning rate decay.')
 # Training options.
 tf.flags.DEFINE_integer('patience', 3, 'A patience for the early stopping.')
 tf.flags.DEFINE_integer('max_trains', 5, 'Number of re-training.')
+tf.flags.DEFINE_integer('initial_stage', 0,
+                        'The stage where to start training.')
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -138,12 +140,7 @@ def main(unused_argv):
     print('{}={}'.format(key, value))
 
   best_weights_path = None
-  for i in range(FLAGS.max_trains):
-    train_dir = make_path(FLAGS.train_dir, i)
-
-    if os.path.isfile(make_path(train_dir, FLAGS.best_weights_filename)):
-      best_weights_path = make_path(train_dir, FLAGS.best_weights_filename)
-
+  for i in range(FLAGS.initial_stage, FLAGS.max_trains):
     if os.path.isdir(make_path(FLAGS.train_dir, i + 1)):
       continue
 
@@ -152,6 +149,13 @@ def main(unused_argv):
 
     train_dir = make_path(FLAGS.train_dir, i)
     os.makedirs(train_dir, exist_ok=True)
+
+    current_weights_path = make_path(train_dir, FLAGS.best_weights_filename)
+    past_weights_path = make_path(train_dir, i - 1, FLAGS.best_weights_filename)
+    if os.path.isfile(current_weights_path):
+      best_weights_path = current_weights_path
+    elif os.path.isfile(past_weights_path):
+      best_weights_path = past_weights_path
 
     print('\n### Start training stage {}'.format(i))
     print('learning_rate={}'.format(learning_rate))
