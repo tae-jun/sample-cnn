@@ -1,11 +1,10 @@
-import tensorflow as tf
 import numpy as np
-
+import tensorflow as tf
 from keras.layers import Input
 from sklearn.metrics import roc_auc_score
 
+from sample_cnn.inputs import batch_inputs
 from sample_cnn.model import SampleCNN
-from sample_cnn.ops.inputs import batch_inputs
 
 tf.flags.DEFINE_string('input_file_pattern', '',
                        'File pattern of sharded TFRecord input files.')

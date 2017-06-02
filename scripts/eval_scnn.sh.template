@@ -16,6 +16,6 @@ fi
 export PYTHONPATH='.'
 export PYTHONUNBUFFERED=1
 
-python sample_cnn/evaluate_scnn.py \
+python sample_cnn/evaluate.py \
     --input_file_pattern="${INPUT_FILE_PATTERN}" \
     --weights_path="${WEIGHTS_PATH}"

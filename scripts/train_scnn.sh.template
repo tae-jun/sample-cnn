@@ -20,7 +20,7 @@ fi
 export PYTHONPATH='.'
 export PYTHONUNBUFFERED=1
 
-nohup python sample_cnn/train_scnn.py \
+nohup python sample_cnn/train.py \
     --train_input_file_pattern="${TRAIN_INPUT_FILE_PATTERN}" \
     --val_input_file_pattern="${VAL_INPUT_FILE_PATTERN}" \
     --train_dir="${TRAIN_DIR}" > "${LOG_FILE}" &

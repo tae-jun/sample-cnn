@@ -1,14 +1,13 @@
-import os
 import math
+import os
 
 import tensorflow as tf
-
-from keras.optimizers import SGD
 from keras.callbacks import (TensorBoard, ModelCheckpoint, EarlyStopping,
                              CSVLogger)
+from keras.optimizers import SGD
 
+from sample_cnn.inputs import batch_inputs
 from sample_cnn.model import SampleCNN
-from sample_cnn.ops.inputs import batch_inputs
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
