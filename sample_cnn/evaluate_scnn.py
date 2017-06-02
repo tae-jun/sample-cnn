@@ -51,7 +51,8 @@ def eval_once():
     all_y_pred = np.empty([0, n_classes], dtype=np.float32)
     all_y_true = np.empty([0, n_classes], dtype=np.float32)
 
-    for _ in range(FLAGS.n_examples):
+    print('Start evaluation.')
+    for i in range(FLAGS.n_examples):
       y_pred_segments, y_true = model.predict_tfrecord(segments)
 
       y_pred = np.mean(y_pred_segments, axis=0)
@@ -61,6 +62,9 @@ def eval_once():
 
       all_y_pred = np.append(all_y_pred, y_pred, axis=0)
       all_y_true = np.append(all_y_true, y_true, axis=0)
+
+      if i % (FLAGS.n_examples // 100):
+        print('Evaluated [{:04d}/{:04d}].'.format(i, FLAGS.n_examples))
 
     roc_auc = roc_auc_score(all_y_true, all_y_pred, average='macro')
 
