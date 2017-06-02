@@ -151,7 +151,8 @@ def main(unused_argv):
     os.makedirs(train_dir, exist_ok=True)
 
     current_weights_path = make_path(train_dir, FLAGS.best_weights_filename)
-    past_weights_path = make_path(train_dir, i - 1, FLAGS.best_weights_filename)
+    past_weights_path = make_path(FLAGS.train_dir, i - 1,
+                                  FLAGS.best_weights_filename)
     if os.path.isfile(current_weights_path):
       best_weights_path = current_weights_path
     elif os.path.isfile(past_weights_path):
