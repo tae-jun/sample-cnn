@@ -13,8 +13,8 @@ class SampleCNN(TFRecordModel):
                extra_inputs=None,
                extra_outputs=None):
     # 59049
-    net = Input(tensor=segments)
-    net = Reshape([-1, 1])(net)
+    segments = Input(tensor=segments)
+    net = Reshape([-1, 1])(segments)
     # 59049 X 1
     net = Conv1D(128, 3, strides=3, padding='valid',
                  kernel_initializer=kernel_initializer)(net)

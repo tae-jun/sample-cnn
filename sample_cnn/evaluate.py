@@ -66,25 +66,18 @@ def eval_once():
         print('Evaluated [{:04d}/{:04d}].'.format(i + 1, FLAGS.n_examples))
 
     losses = []
-    roc_aucs = []
     for i in range(n_classes):
       class_y_true = all_y_true[:, i]
       class_y_pred = all_y_pred[:, i]
-
       if np.sum(class_y_true) != 0:
         class_loss = log_loss(class_y_true, class_y_pred)
-        class_roc_auc = roc_auc_score(class_y_true, class_y_pred)
-
         losses.append(class_loss)
-        roc_aucs.append(class_roc_auc)
 
     loss = np.mean(losses)
-    roc_auc = np.mean(roc_aucs)
     print('@ binary cross entropy loss: {}'.format(loss))
-    print('@ ROC AUC score: {}'.format(roc_auc))
 
     roc_auc = roc_auc_score(all_y_true, all_y_pred, average='macro')
-    print('@ scikit-learn ROC AUC score: {}'.format(roc_auc))
+    print('@ ROC AUC score: {}'.format(roc_auc))
 
 
 def main(unused_argv):
