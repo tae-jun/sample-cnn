@@ -85,6 +85,11 @@ class SampleCNN(TFRecordModel):
 
     logits = Dense(units=n_outputs, activation='sigmoid')(net)
 
+    if extra_inputs is None:
+      extra_inputs = []
+    if extra_outputs is None:
+      extra_outputs = []
+
     if not isinstance(extra_inputs, list):
       extra_inputs = [extra_inputs]
     inputs = [segments] + extra_inputs
