@@ -90,6 +90,7 @@ def train(learning_rate, train_dir, past_best_weight_path):
                     dropout_rate=FLAGS.dropout_rate)
 
   if past_best_weight_path:
+    print('Load weights from "{}".'.format(past_best_weight_path))
     model.load_weights(past_best_weight_path)
 
   optimizer = SGD(lr=learning_rate,
