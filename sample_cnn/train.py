@@ -171,7 +171,7 @@ def train(initial_lr,
                                 checkpointer, csv_logger])
 
   # The end of the stage. Evaluate on test set.
-  best_ckpt_path = find_best_checkpoint(stage_train_dir)
+  best_ckpt_path, *_ = find_best_checkpoint(stage_train_dir)
   print('The end of the stage. '
         'Start evaluation on test set using checkpoint "{}"'
         .format(best_ckpt_path))
