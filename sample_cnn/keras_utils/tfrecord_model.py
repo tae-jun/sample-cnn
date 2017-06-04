@@ -1,4 +1,5 @@
 import warnings
+import copy
 
 import six
 import tensorflow as tf
@@ -14,24 +15,46 @@ from keras.engine.training import _collect_metrics
 
 
 class TFRecordModel(Model):
-  def compile_tfrecord(self, optimizer, loss, y_batch, metrics=None):
+  def __init__(self, inputs, outputs, val_inputs=None, name=None):
+    super(TFRecordModel, self).__init__(inputs, outputs, name=name)
+
+    # Prepare val_inputs.
+    if val_inputs is None:
+      self.val_inputs = []
+    elif isinstance(val_inputs, (list, tuple)):
+      self.val_inputs = list(val_inputs)  # Tensor or list of tensors.
+    else:
+      self.val_inputs = [val_inputs]
+
+    # Prepare val_outputs.
+    if val_inputs is None:
+      self.val_outputs = []
+    else:
+      val_outputs = self(val_inputs)
+      if isinstance(val_outputs, (list, tuple)):
+        self.val_outputs = list(val_outputs)  # Tensor or list of tensors.
+      else:
+        self.val_outputs = [val_outputs]
+
+  def compile_tfrecord(self, optimizer, loss, y, metrics=None,
+                       y_val=None):
     """Configures the model for training.
 
     # Arguments
         optimizer: str (name of optimizer) or optimizer object.
-            See [optimizers](/optimizers).
+          See [optimizers](/optimizers).
         loss: str (name of objective function) or objective function.
-            See [losses](/losses).
-            If the model has multiple outputs, you can use a different loss
-            on each output by passing a dictionary or a list of losses.
-            The loss value that will be minimized by the model
-            will then be the sum of all individual losses.
+          See [losses](/losses).
+          If the model has multiple outputs, you can use a different loss
+          on each output by passing a dictionary or a list of losses.
+          The loss value that will be minimized by the model
+          will then be the sum of all individual losses.
         metrics: list of metrics to be evaluated by the model
-            during training and testing.
-            Typically you will use `metrics=['accuracy']`.
-            To specify different metrics for different outputs of a
-            multi-output model, you could also pass a dictionary,
-            such as `metrics={'output_a': 'accuracy'}`.
+          during training and testing.
+          Typically you will use `metrics=['accuracy']`.
+          To specify different metrics for different outputs of a
+          multi-output model, you could also pass a dictionary,
+          such as `metrics={'output_a': 'accuracy'}`.
 
     # Raises
         ValueError: In case of invalid arguments for
@@ -42,6 +65,12 @@ class TFRecordModel(Model):
     self.loss = loss
     self.sample_weight_mode = None
     self.loss_weights = None
+    self.y_val = y_val
+
+    do_validation = bool(len(self.val_inputs) > 0)
+    if do_validation and y_val is None:
+      raise ValueError('When you use validation inputs, '
+                       'you should provide y_val.')
 
     # Prepare loss functions.
     if isinstance(loss, dict):
@@ -74,29 +103,48 @@ class TFRecordModel(Model):
       loss_functions = [loss_function for _ in range(len(self.outputs))]
     self.loss_functions = loss_functions
 
-    # Prepare targets of model.
-    self.targets = [None for _ in range(len(self.outputs))]
-    self.targets[0] = y_batch
+    # Prepare training targets of model.
+    if isinstance(y, (list, tuple)):
+      y = list(y)  # Tensor or list of tensors.
+    else:
+      y = [y]
+    self.targets = []
+    for i in range(len(self.outputs)):
+      target = y[i]
+      self.targets.append(target)
+
+    # Prepare validation targets of model.
+    if isinstance(y_val, (list, tuple)):
+      y_val = list(y_val)  # Tensor or list of tensors.
+    else:
+      y_val = [y_val]
+    self.y_val = y_val
+    self.val_targets = []
+    for i in range(len(self.val_outputs)):
+      val_target = y_val[i]
+      self.val_targets.append(val_target)
 
     # Prepare metrics.
     self.metrics = metrics
     self.metrics_names = ['loss']
     self.metrics_tensors = []
+    self.val_metrics_names = ['loss']
+    self.val_metrics_tensors = []
 
-    # Compute total loss.
+    # Compute total training loss.
     total_loss = None
     for i in range(len(self.outputs)):
       y_true = self.targets[i]
       y_pred = self.outputs[i]
       loss_function = loss_functions[i]
-      output_loss = K.mean(loss_function(y_true, y_pred))
+      val_output_loss = K.mean(loss_function(y_true, y_pred))
       if len(self.outputs) > 1:
-        self.metrics_tensors.append(output_loss)
+        self.metrics_tensors.append(val_output_loss)
         self.metrics_names.append(self.output_names[i] + '_loss')
       if total_loss is None:
-        total_loss = output_loss
+        total_loss = val_output_loss
       else:
-        total_loss += output_loss
+        total_loss += val_output_loss
     if total_loss is None:
       if not self.losses:
         raise RuntimeError('The model cannot be compiled '
@@ -104,10 +152,32 @@ class TFRecordModel(Model):
       else:
         total_loss = 0.
 
+    # Compute total validation loss.
+    val_total_loss = None
+    for i in range(len(self.val_outputs)):
+      y_true = self.val_targets[i]
+      y_pred = self.val_outputs[i]
+      loss_function = loss_functions[i]
+      val_output_loss = K.mean(loss_function(y_true, y_pred))
+      if len(self.outputs) > 1:
+        self.val_metrics_tensors.append(val_output_loss)
+        self.val_metrics_names.append(self.output_names[i] + '_val_loss')
+      if val_total_loss is None:
+        val_total_loss = val_output_loss
+      else:
+        val_total_loss += val_output_loss
+    if val_total_loss is None:
+      if not self.losses and do_validation:
+        raise RuntimeError('The model cannot be compiled '
+                           'because it has no loss to optimize.')
+      else:
+        val_total_loss = 0.
+
     # Add regularization penalties
     # and other layer-specific losses.
     for loss_tensor in self.losses:
       total_loss += loss_tensor
+      val_total_loss += loss_tensor
 
     # List of same size as output_names.
     # contains tuples (metrics for output, names of metrics).
@@ -150,13 +220,52 @@ class TFRecordModel(Model):
           for name, tensor in six.iteritems(metric_result):
             append_metric(i, name, tensor)
 
+    def append_val_metric(layer_num, metric_name, metric_tensor):
+      """Helper function used in loop below."""
+      if len(self.output_names) > 1:
+        metric_name = self.output_layers[layer_num].name + '_val_' + metric_name
+      self.val_metrics_names.append(metric_name)
+      self.val_metrics_tensors.append(metric_tensor)
+
+    for i in range(len(self.val_outputs)):
+      y_true = self.val_targets[i]
+      y_pred = self.val_outputs[i]
+      output_metrics = nested_metrics[i]
+      for metric in output_metrics:
+        if metric == 'accuracy' or metric == 'acc':
+          # custom handling of accuracy
+          # (because of class mode duality)
+          output_shape = self.internal_output_shapes[i]
+          acc_fn = None
+          if (output_shape[-1] == 1 or
+                  self.loss_functions[i] == losses.binary_crossentropy):
+            # case: binary accuracy
+            acc_fn = metrics_module.binary_accuracy
+          elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
+            # case: categorical accuracy with sparse targets
+            acc_fn = metrics_module.sparse_categorical_accuracy
+          else:
+            acc_fn = metrics_module.categorical_accuracy
+
+          append_val_metric(i, 'acc', K.mean(acc_fn(y_true, y_pred)))
+        else:
+          metric_fn = metrics_module.get(metric)
+          metric_result = metric_fn(y_true, y_pred)
+          metric_result = {
+            metric_fn.__name__: metric_result
+          }
+          for name, tensor in six.iteritems(metric_result):
+            append_val_metric(i, name, tensor)
+
     # Prepare gradient updates and state updates.
     self.total_loss = total_loss
+    self.val_total_loss = val_total_loss
 
     # Functions for train, test and predict will
     # be compiled lazily when required.
     # This saves time when the user is not using all functions.
     self.train_function = None
+    self.val_function = None
     self.test_function = None
     self.predict_function = None
 
@@ -198,19 +307,31 @@ class TFRecordModel(Model):
                                       [self.total_loss] + self.metrics_tensors,
                                       updates=self.state_updates)
 
+  def _make_tfrecord_val_function(self):
+    if not hasattr(self, 'val_function'):
+      raise RuntimeError('You must compile your model before using it.')
+    if self.val_function is None:
+      inputs = []
+      if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+        inputs += [K.learning_phase()]
+      # Return loss and metrics, no gradient updates.
+      # Does update the network states.
+      self.val_function = K.function(
+        inputs,
+        [self.val_total_loss] + self.val_metrics_tensors,
+        updates=self.state_updates)
+
   def fit_tfrecord(self, steps_per_epoch,
                    epochs=1,
                    verbose=1,
                    callbacks=None,
-                   validation_batch=None,
                    validation_steps=None,
                    initial_epoch=0):
     epoch = initial_epoch
 
-    do_validation = bool(validation_batch)
     self._make_tfrecord_train_function()
-    if do_validation:
-      self._make_tfrecord_test_function()
+
+    do_validation = bool(len(self.val_inputs) > 0)
     if do_validation and not validation_steps:
       raise ValueError('When using a validation batch, '
                        'you must specify a value for '
@@ -218,7 +339,12 @@ class TFRecordModel(Model):
 
     # Prepare display labels.
     out_labels = self._get_deduped_metrics_names()
-    callback_metrics = out_labels + ['val_' + n for n in out_labels]
+
+    if do_validation:
+      callback_metrics = copy.copy(out_labels) + ['val_' + n
+                                                  for n in out_labels]
+    else:
+      callback_metrics = copy.copy(out_labels)
 
     # prepare callbacks
     self.history = cbks.History()
@@ -243,15 +369,9 @@ class TFRecordModel(Model):
     callbacks.on_train_begin()
 
     if do_validation:
-      if len(validation_batch) == 2:
-        val_x, val_y = validation_batch
-        val_sample_weight = None
-      else:
-        raise ValueError('validation_batch should be a tuple '
-                         '`(val_x, val_y)`. Found: ' +
-                         str(validation_batch))
+      val_sample_weight = None
       for cbk in callbacks:
-        cbk.validation_data = [val_x, val_y, val_sample_weight]
+        cbk.validation_data = [self.val_inputs, self.y_val, val_sample_weight]
 
     try:
       sess = K.get_session()
@@ -292,10 +412,7 @@ class TFRecordModel(Model):
 
           # Epoch finished.
           if steps_done >= steps_per_epoch and do_validation:
-            val_outs = self.evaluate_tfrecord(x_batch=val_x,
-                                              y_batch=val_y,
-                                              steps=validation_steps,
-                                              stop_queue_runners=False)
+            val_outs = self._validate_tfrecord(steps=validation_steps)
             if not isinstance(val_outs, list):
               val_outs = [val_outs]
             # Same labels assumed.
@@ -316,8 +433,39 @@ class TFRecordModel(Model):
     callbacks.on_train_end()
     return self.history
 
-  def evaluate_tfrecord(self, x_batch, y_batch, steps,
-                        stop_queue_runners=True):
+  def _validate_tfrecord(self, steps):
+    self._make_tfrecord_val_function()
+
+    steps_done = 0
+    all_outs = []
+    batch_sizes = []
+
+    while steps_done < steps:
+      if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+        ins = [0.]
+      else:
+        ins = []
+      outs = self.val_function(ins)
+      if len(outs) == 1:
+        outs = outs[0]
+
+      batch_size = self.val_inputs[0].shape[0].value
+      all_outs.append(outs)
+
+      steps_done += 1
+      batch_sizes.append(batch_size)
+
+    if not isinstance(outs, list):
+      return np.average(np.asarray(all_outs),
+                        weights=batch_sizes)
+    else:
+      averages = []
+      for i in range(len(outs)):
+        averages.append(np.average([out[i] for out in all_outs],
+                                   weights=batch_sizes))
+      return averages
+
+  def evaluate_tfrecord(self, steps):
     """Evaluates the model on a data generator.
 
     The generator should return the same kind of data
@@ -361,7 +509,7 @@ class TFRecordModel(Model):
         if len(outs) == 1:
           outs = outs[0]
 
-        batch_size = x_batch.shape[0].value
+        batch_size = self.inputs[0].shape[0].value
         all_outs.append(outs)
 
         steps_done += 1

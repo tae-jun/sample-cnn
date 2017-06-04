@@ -1,13 +1,17 @@
 import math
 import os
+import re
 
 import tensorflow as tf
-from keras.callbacks import (TensorBoard, ModelCheckpoint, EarlyStopping,
-                             CSVLogger)
+
+from glob import glob
+
+from keras.callbacks import (TensorBoard, ModelCheckpoint,
+                             EarlyStopping, CSVLogger)
 from keras.optimizers import SGD
 
-from sample_cnn.inputs import batch_inputs
 from sample_cnn.model import SampleCNN
+from sample_cnn.ops import batch_inputs, evaluate
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -16,10 +20,12 @@ tf.flags.DEFINE_string('train_input_file_pattern', '',
                        'File pattern of TFRecord input files.')
 tf.flags.DEFINE_string('val_input_file_pattern', '',
                        'File pattern of validation TFRecord input files.')
+tf.flags.DEFINE_string('test_input_file_pattern', '',
+                       'File pattern of test TFRecord input files.')
 tf.flags.DEFINE_string('train_dir', '',
                        'Directory where to write event logs and checkpoints.')
-tf.flags.DEFINE_string('best_weights_filename', 'best_weights.hdf5',
-                       'Filename of weights of the best model.')
+tf.flags.DEFINE_string('checkpoint_prefix', 'best_weights',
+                       'Prefix of the checkpoint filename.')
 
 # Batch options.
 tf.flags.DEFINE_integer('batch_size', 23, 'Batch size.')
@@ -31,6 +37,8 @@ tf.flags.DEFINE_integer('n_train_examples', 15250,
                         'Number of examples in training dataset.')
 tf.flags.DEFINE_integer('n_val_examples', 1529,
                         'Number of examples in validation dataset.')
+tf.flags.DEFINE_integer('n_test_examples', 4332,
+                        'Number of examples in test dataset.')
 
 tf.flags.DEFINE_integer('n_read_threads', 4, 'Number of example reader.')
 
@@ -62,10 +70,31 @@ def calculate_steps(n_examples, n_segments, batch_size):
   return steps
 
 
-def train(learning_rate, train_dir, past_best_weight_path):
-  if not tf.gfile.Exists(train_dir):
-    tf.logging.info('Creating training directory: %s', train_dir)
-    tf.gfile.MakeDirs(train_dir)
+def find_best_checkpoint(*dirs):
+  best_checkpoint_path = None
+  best_epoch = -1
+  best_val_loss = 1e+10
+  for dir in dirs:
+    checkpoint_paths = glob('{}/{}*'.format(dir, FLAGS.checkpoint_prefix))
+    for checkpoint_path in checkpoint_paths:
+      epoch = int(re.findall('e\d+', checkpoint_path)[0][1:])
+      val_loss = float(re.findall('l\d\.\d+', checkpoint_path)[0][1:])
+
+      if val_loss < best_val_loss:
+        best_checkpoint_path = checkpoint_path
+        best_epoch = epoch
+        best_val_loss = val_loss
+
+  return best_checkpoint_path, best_epoch, best_val_loss
+
+
+def train(initial_lr,
+          stage_train_dir,
+          checkpoint_path_to_load=None,
+          initial_epoch=0):
+  if not tf.gfile.Exists(stage_train_dir):
+    tf.logging.info('Creating training directory: %s', stage_train_dir)
+    tf.gfile.MakeDirs(stage_train_dir)
 
   x_train_batch, y_train_batch = batch_inputs(
     file_pattern=FLAGS.train_input_file_pattern,
@@ -85,31 +114,45 @@ def train(learning_rate, train_dir, past_best_weight_path):
     shard_queue_name='val_filename_queue',
     example_queue_name='val_input_queue')
 
+  # Create a model.
   model = SampleCNN(segments=x_train_batch,
+                    val_segments=x_val_batch,
                     dropout_rate=FLAGS.dropout_rate)
 
-  if past_best_weight_path:
-    print('Load weights from "{}".'.format(past_best_weight_path))
-    model.load_weights(past_best_weight_path)
+  # Load weights from a checkpoint if exists.
+  if checkpoint_path_to_load:
+    print('Load weights from "{}".'.format(checkpoint_path_to_load))
+    model.load_weights(checkpoint_path_to_load)
 
-  optimizer = SGD(lr=learning_rate,
+  # Setup an optimizer.
+  optimizer = SGD(lr=initial_lr,
                   momentum=FLAGS.momentum,
                   decay=FLAGS.local_lr_decay,
                   nesterov=True)
-  model.compile_tfrecord(y_batch=y_train_batch,
+
+  # Compile the model.
+  model.compile_tfrecord(y=y_train_batch,
+                         y_val=y_val_batch,
                          loss='binary_crossentropy',
                          optimizer=optimizer)
 
-  best_weights_path = make_path(train_dir, FLAGS.best_weights_filename)
+  # Setup a TensorBoard callback.
+  tensor_board = TensorBoard(log_dir=stage_train_dir)
 
-  # Setup callbacks.
-  tensor_board = TensorBoard(log_dir=train_dir)
+  # Use early stopping mechanism.
   early_stopping = EarlyStopping(monitor='val_loss', patience=FLAGS.patience)
-  model_checkpoint = ModelCheckpoint(
-    filepath=best_weights_path,
+
+  # Setup a checkpointer.
+  checkpoint_path = make_path(
+    stage_train_dir,
+    FLAGS.checkpoint_prefix + '-e{epoch:03d}-l{val_loss:.4f}.hdf5')
+  checkpointer = ModelCheckpoint(
+    filepath=checkpoint_path,
     monitor='val_loss',
     save_best_only=True)
-  csv_logger = CSVLogger(filename=make_path(train_dir, 'training.csv'),
+
+  # Setup a CSV logger.
+  csv_logger = CSVLogger(filename=make_path(stage_train_dir, 'training.csv'),
                          append=True)
 
   # Kick-off the training!
@@ -120,52 +163,71 @@ def train(learning_rate, train_dir, past_best_weight_path):
                               n_segments=FLAGS.n_segments_per_audio,
                               batch_size=FLAGS.batch_size)
 
-  model.fit_tfrecord(steps_per_epoch=train_steps,
-                     epochs=1000,
+  model.fit_tfrecord(epochs=100,
+                     initial_epoch=initial_epoch,
+                     steps_per_epoch=train_steps,
+                     validation_steps=val_steps,
                      callbacks=[tensor_board, early_stopping,
-                                model_checkpoint, csv_logger],
-                     validation_batch=(x_val_batch, y_val_batch),
-                     validation_steps=val_steps)
+                                checkpointer, csv_logger])
 
-  # TODO: Evaluate on test set.
+  # The end of the stage. Evaluate on test set.
+  best_ckpt_path = find_best_checkpoint(stage_train_dir)
+  print('The end of the stage. '
+        'Start evaluation on test set using checkpoint "{}"'
+        .format(best_ckpt_path))
+
+  evaluate(input_file_pattern=FLAGS.test_input_file_pattern,
+           weights_path=best_ckpt_path,
+           n_examples=FLAGS.n_test_examples,
+           n_audios_per_shard=FLAGS.n_audios_per_shard,
+           print_progress=False)
 
 
 def main(unused_argv):
-  assert FLAGS.train_input_file_pattern, '--train_input_file_pattern is required'
   assert FLAGS.train_dir, '--train_dir is required'
+  assert FLAGS.train_input_file_pattern, '--train_input_file_pattern is required'
   assert FLAGS.val_input_file_pattern, '--val_input_file_pattern is required'
+  assert FLAGS.test_input_file_pattern, '--test_input_file_pattern is required'
 
   # Print all flags.
-  print('### Flags')
+  print('@@ Flags')
   for key, value in FLAGS.__flags.items():
     print('{}={}'.format(key, value))
 
-  best_weights_path = None
   for i in range(FLAGS.initial_stage, FLAGS.max_trains):
-    if os.path.isdir(make_path(FLAGS.train_dir, i + 1)):
+    stage_train_dir = make_path(FLAGS.train_dir, i)
+    previous_stage_train_dir = make_path(FLAGS.train_dir, i - 1)
+    next_stage_train_dir = make_path(FLAGS.train_dir, i + 1)
+
+    # Pass if there is a training directory of the next stage.
+    if os.path.isdir(next_stage_train_dir):
       continue
 
+    # Setup the initial learning rate for the stage.
     decay = FLAGS.global_lr_decay ** i
     learning_rate = FLAGS.initial_learning_rate * decay
 
-    train_dir = make_path(FLAGS.train_dir, i)
-    os.makedirs(train_dir, exist_ok=True)
+    # Create a directory for the stage.
+    os.makedirs(stage_train_dir, exist_ok=True)
 
-    current_weights_path = make_path(train_dir, FLAGS.best_weights_filename)
-    past_weights_path = make_path(FLAGS.train_dir, i - 1,
-                                  FLAGS.best_weights_filename)
-    if os.path.isfile(current_weights_path):
-      best_weights_path = current_weights_path
-    elif os.path.isfile(past_weights_path):
-      best_weights_path = past_weights_path
+    # Find the best checkpoint to load weights.
+    (ckpt_path, ckpt_epoch, ckpt_val_loss) = find_best_checkpoint(
+      stage_train_dir, previous_stage_train_dir)
 
-    print('\n### Start training stage {}'.format(i))
-    print('learning_rate={}'.format(learning_rate))
-    print('train_dir={}\n'.format(train_dir))
+    print('\n@@ Start training stage {:02d}: lr={}, train_dir={}'
+          .format(i, learning_rate, stage_train_dir))
+    if ckpt_path:
+      print('Found a trained model: epoch={}, val_loss={}, path={}'
+            .format(ckpt_epoch, ckpt_val_loss, ckpt_path))
+    else:
+      print('No trained model found.')
 
-    train(learning_rate, train_dir, best_weights_path)
+    train(initial_lr=learning_rate,
+          stage_train_dir=stage_train_dir,
+          checkpoint_path_to_load=ckpt_path,
+          initial_epoch=ckpt_epoch + 1)
 
-    best_weights_path = make_path(train_dir, FLAGS.best_weights_filename)
+  print('\nDone.')
 
 
 if __name__ == '__main__':
