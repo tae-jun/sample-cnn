@@ -6,7 +6,7 @@ from sample_cnn.keras_utils.tfrecord_model import TFRecordModel
 
 class SampleCNN(TFRecordModel):
   def __init__(self, segments,
-               val_segments,
+               val_segments=None,
                n_outputs=50,
                activation='relu',
                kernel_initializer='he_uniform',
@@ -15,7 +15,6 @@ class SampleCNN(TFRecordModel):
                extra_outputs=None):
     # 59049
     segments = Input(tensor=segments)
-    val_segments = Input(tensor=val_segments)
     net = Reshape([-1, 1])(segments)
     # 59049 X 1
     net = Conv1D(128, 3, strides=3, padding='valid',
