@@ -225,7 +225,7 @@ def main(unused_argv):
     train(initial_lr=learning_rate,
           stage_train_dir=stage_train_dir,
           checkpoint_path_to_load=ckpt_path,
-          initial_epoch=ckpt_epoch + 1)
+          initial_epoch=ckpt_epoch)
 
   print('\nDone.')
 
