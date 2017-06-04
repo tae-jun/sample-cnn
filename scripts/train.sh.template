@@ -8,7 +8,9 @@ ENV_NAME=   # if you don't use an environment, just leave it blank.
 
 
 TRAIN_INPUT_FILE_PATTERN="${BASE_DIR}/tfrecord/train-???-of-???.tfrecords"
-VAL_INPUT_FILE_PATTERN="${BASE_DIR}/tfrecord/val-???-of-???.seq.tfrecords"
+VAL_INPUT_FILE_PATTERN="${BASE_DIR}/tfrecord/val-???-of-???.tfrecords"
+TEST_INPUT_FILE_PATTERN="${BASE_DIR}/tfrecord/test-???-of-???.seq.tfrecords"
+
 LOG_FILE="${TRAIN_DIR}/train.log"
 
 mkdir -p "${TRAIN_DIR}"
@@ -23,6 +25,7 @@ export PYTHONUNBUFFERED=1
 nohup python sample_cnn/train.py \
     --train_input_file_pattern="${TRAIN_INPUT_FILE_PATTERN}" \
     --val_input_file_pattern="${VAL_INPUT_FILE_PATTERN}" \
+    --test_input_file_pattern="${TEST_INPUT_FILE_PATTERN}" \
     --train_dir="${TRAIN_DIR}" > "${LOG_FILE}" &
 
 tail -F "${LOG_FILE}"
