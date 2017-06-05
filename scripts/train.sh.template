@@ -26,6 +26,6 @@ nohup python sample_cnn/train.py \
     --train_input_file_pattern="${TRAIN_INPUT_FILE_PATTERN}" \
     --val_input_file_pattern="${VAL_INPUT_FILE_PATTERN}" \
     --test_input_file_pattern="${TEST_INPUT_FILE_PATTERN}" \
-    --train_dir="${TRAIN_DIR}" > "${LOG_FILE}" &
+    --train_dir="${TRAIN_DIR}" >> "${LOG_FILE}" &
 
 tail -F "${LOG_FILE}"
