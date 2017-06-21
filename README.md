@@ -4,7 +4,7 @@ Neural Networks for Music Auto-tagging Using Raw Waveforms"***
 
 This is a [TensorFlow][1] implementation of "[*Sample-level Deep
 Convolutional Neural Networks for Music Auto-tagging Using Raw
-Waveforms*][10]" using [TF-Slim][11]. This repository only implements the
+Waveforms*][10]" using [Keras][11]. This repository only implements the
 best model of the paper. (the model described in Table 1; m=3, n=9)
 
 
@@ -31,6 +31,7 @@ installed after installing packages in `requirements.txt`.
 
 This will install the required packages:
 * [tensorflow][1] **1.0.1** (has an issue on 1.1.0)
+* [keras][11]
 * [pandas][2]
 * [scikit-learn][3]
 * [madmom][4]
@@ -221,4 +222,4 @@ option.
 [8]: http://mirg.city.ac.uk/codeapps/the-magnatagatune-dataset
 [9]: https://github.com/keunwoochoi/magnatagatune-list
 [10]: https://arxiv.org/abs/1703.01789
-[11]: https://github.com/tensorflow/tensorflow/tree/master/tensorflow/contrib/slim
+[11]: https://keras.io/
