@@ -38,6 +38,7 @@ This will install the required packages:
 * [numpy][5]
 * [scipy][6]
 * [cython][7]
+* [h5py][7]
 
 ### Installing ffmpeg
 `ffmpeg` is required for `madmom`.
@@ -167,8 +168,8 @@ this:
 To train a model from scratch, copy a shell template and edit the
 copy like what did above:
 ```sh
-cp scripts/train_scnn.sh.template scripts/train_scnn.sh
-vi scripts/train_scnn.sh
+cp scripts/train.sh.template scripts/train.sh
+vi scripts/train.sh
 ```
 
 And fill in the environment variables:
@@ -187,7 +188,7 @@ ENV_NAME="sample_cnn"
 
 Let's kick off the training!:
 ```sh
-./scripts/train_scnn.sh
+./scripts/train.sh
 ```
 
 The script will **automatically run a process in the background**, and
@@ -198,8 +199,8 @@ The script will **automatically run a process in the background**, and
 ## Evaluating a model
 Copy an evaluating shell script template and edit the copy:
 ```sh
-cp scripts/eval_scnn.sh.template scripts/eval_scnn.sh
-vi scripts/eval_scnn.sh
+cp scripts/evaluate.sh.template scripts/evaluate.sh
+vi scripts/evaluate.sh
 ```
 
 Fill in the environment variables:
