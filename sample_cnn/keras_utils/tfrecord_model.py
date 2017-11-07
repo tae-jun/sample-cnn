@@ -66,6 +66,7 @@ class TFRecordModel(Model):
     self.sample_weight_mode = None
     self.loss_weights = None
     self.y_val = y_val
+    self.constraints = None
 
     do_validation = bool(len(self.val_inputs) > 0)
     if do_validation and y_val is None:
