@@ -98,7 +98,7 @@ def _process_dataset(anno, sample_rate, n_samples, n_threads):
     n_threads: Number of threads to process the dataset.
   """
   args_queue = Queue()
-  split_and_shard_sets = pd.unique(anno[['split', 'shard']].values)
+  split_and_shard_sets = pd.unique([tuple(x) for x in anno[['split', 'shard']].values])
 
   for split, shard in split_and_shard_sets:
     assigned_anno = anno[(anno['split'] == split) & (anno['shard'] == shard)]
