@@ -38,7 +38,7 @@ This will install the required packages:
 * [numpy][5]
 * [scipy][6]
 * [cython][7]
-* [h5py][7]
+* [h5py][12]
 
 ### Installing ffmpeg
 `ffmpeg` is required for `madmom`.
@@ -224,3 +224,4 @@ option.
 [9]: https://github.com/keunwoochoi/magnatagatune-list
 [10]: https://arxiv.org/abs/1703.01789
 [11]: https://keras.io/
+[12]: http://www.h5py.org
